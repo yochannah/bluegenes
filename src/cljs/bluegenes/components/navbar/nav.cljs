@@ -54,12 +54,13 @@
             :id "password"
             :value (:password @credentials)
             :on-change (partial update-form credentials :password)
-            :on-key-up (fn [k]
-                         (when (= 13 (oget k :keyCode))
-                           (dispatch [:bluegenes.events.auth/login
-                                      (assoc @credentials
-                                             :service (:service @current-mine)
-                                             :mine-id (:id @current-mine))])))}]]
+            :on-key-up
+            (fn [k]
+              (when (= 13 (oget k :keyCode))
+                (dispatch [:bluegenes.events.auth/login
+                           (assoc @credentials
+                                  :service (:service @current-mine)
+                                  :mine-id (:id @current-mine))])))}]]
          [:div.register-or-login
           [register-for-mine current-mine]
           [:button.btn.btn-primary.btn-raised
@@ -118,7 +119,9 @@
       [:svg.icon.icon-cog [:use {:xlinkHref "#icon-user-circle"}]]
       [:span.long-name (str " " (:username @identity))]]
      [:ul.dropdown-menu
-      [:li [:a {:on-click #(dispatch [:bluegenes.events.auth/logout])} "Log Out"]]]]))
+      [:li
+       [:a {:on-click
+            #(dispatch [:bluegenes.events.auth/logout])} "Log Out"]]]]))
 
 (defn anonymous []
   [:li.logon.secondary-nav.dropdown.warning
@@ -140,6 +143,7 @@
 (defn main []
   (let [active-panel (subscribe [:active-panel])
         current-mine (subscribe [:current-mine])
+        show-logon-button? (subscribe [:bluegenes.subs.auth/allow-logon?])
         panel-is (fn [panel-key] (= @active-panel panel-key))]
     (fn []
       [:nav#bluegenes-main-nav.main-nav
@@ -147,23 +151,37 @@
         [:li.minename.primary-nav {:on-click #(navigate! "/")}
          [active-mine-logo]
          [:span.long-name (:name @current-mine)]]
-        [:li.homelink.primary-nav.larger-screen-only {:class (if (panel-is :home-panel) "active")} [:a {:on-click #(navigate! "/")} "Home"]]
+        [:li.homelink.primary-nav.larger-screen-only
+         {:class (if (panel-is :home-panel) "active")}
+         [:a {:on-click #(navigate! "/")} "Home"]]
         [:li.primary-nav {:class (if (panel-is :upload-panel) "active")}
          [:a {:on-click #(navigate! "/upload/input")}
-          [:svg.icon.icon-upload.extra-tiny-screen [:use {:xlinkHref "#icon-upload"}]]
-          [:span..long-name.larger-screen-only "Upload"]]]
+          [:svg.icon.icon-upload.extra-tiny-screen
+           [:use {:xlinkHref "#icon-upload"}]]
+          [:span.long-name.larger-screen-only "Upload"]]]
         [:li.primary-nav {:class (if (panel-is :mymine-panel) "active")}
          [:a {:on-click #(navigate! "/mymine")}
           [:svg.icon.icon-cog [:use {:xlinkHref "#icon-my-data"}]]
           [:span "My\u00A0Data"]]]
-        [:li.primary-nav {:class (if (panel-is :templates-panel) "active")} [:a {:on-click #(navigate! "/templates")} "Templates"]]
+        [:li.primary-nav
+         {:class (if (panel-is :templates-panel) "active")}
+         [:a {:on-click #(navigate! "/templates")} "Templates"]]
         ;;don't show region search for mines that have no example configured
         (cond (:regionsearch-example @current-mine)
-              [:li {:class (if (panel-is :regions-panel) "active")} [:a {:on-click #(navigate! "/regions")} "Regions"]])
-        [:li.primary-nav {:class (if (panel-is :querybuilder-panel) "active")} [:a {:on-click #(navigate! "/querybuilder")} "Query\u00A0Builder"]]
+              [:li {:class (if (panel-is :regions-panel) "active")}
+               [:a {:on-click #(navigate! "/regions")} "Regions"]])
+        [:li.primary-nav {:class (if (panel-is :querybuilder-panel) "active")}
+         [:a {:on-click #(navigate! "/querybuilder")} "Query\u00A0Builder"]]
         [:li.secondary-nav.search [search/main]]
-        (cond (not (panel-is :search-panel)) [:li.secondary-nav.search-mini [:a {:on-click #(navigate! "/search")} [:svg.icon.icon-search [:use {:xlinkHref "#icon-search"}]]]])
-        [:li.secondary-nav.larger-screen-only [:a {:on-click #(navigate! "/help")} [:svg.icon.icon-question [:use {:xlinkHref "#icon-question"}]]]]
+        (cond (not (panel-is :search-panel))
+              [:li.secondary-nav.search-mini
+               [:a {:on-click #(navigate! "/search")}
+                [:svg.icon.icon-search [:use {:xlinkHref "#icon-search"}]]]])
+        [:li.secondary-nav.larger-screen-only
+         [:a {:on-click #(navigate! "/help")}
+          [:svg.icon.icon-question [:use {:xlinkHref "#icon-question"}]]]]
         [settings]
-        [user]]
+        ;; the logon button only shows for HTTPS mines or localhost.
+        ;; we don't want to be responsible for plaintext pw MITM breaches.
+        (cond @show-logon-button? [user])]
        [progress-bar/main]])))
